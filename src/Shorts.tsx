@@ -8,7 +8,10 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert, { AlertProps } from '@mui/material/Alert';
 import { fetchRandomShorts } from './youtubeService';
+import Header from './Header';
 
 interface Video {
   id: string;
@@ -17,10 +20,20 @@ interface Video {
 
 interface ShortsProps {
   searchKeyword: string;
+  onSearch: (keyword: string) => void;
 }
 
-const Shorts: React.FC<ShortsProps> = ({ searchKeyword }) => {
+const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
+  props,
+  ref,
+) {
+  return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
+});
+
+const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
   const [video, setVideo] = useState<Video | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
   const loadMoreVideo = useCallback(async () => {
     try {
@@ -35,6 +48,33 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword }) => {
     loadMoreVideo();
   }, [loadMoreVideo]);
 
+  const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
+
+  const showSnackbar = (message: string) => {
+    setSnackbarMessage(message);
+    setSnackbarOpen(true);
+  };
+
+  const handleLike = () => {
+    showSnackbar('Like sent!');
+  };
+
+  const handleDislike = () => {
+    showSnackbar('Dislike sent!');
+  };
+
+  const handleShare = () => {
+    if (video) {
+      navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${video.id}`);
+      showSnackbar('Link copied!');
+    }
+  };
+
   if (!video) {
     return <Typography>Loading...</Typography>;
   }
@@ -46,6 +86,17 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword }) => {
       alignItems="center"
       sx={{ backgroundColor: '#f0f0f0', paddingTop: '64px', minHeight: '100vh', margin: 0, overflow: 'hidden' }}
     >
+      <Header onSearch={onSearch} />
+      <Snackbar
+        anchorOrigin={{ vertical:'bottom', horizontal:'center' }}
+        open={snackbarOpen}
+        autoHideDuration={2000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert onClose={handleSnackbarClose} severity="info" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
       <Box
         display="flex"
         flexDirection="row"
@@ -94,19 +145,17 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword }) => {
           alignItems="center"
           sx={{ width: 80, backgroundColor: '#f0f0f0', height: '100vh' }}
         >
-          <IconButton sx={{ mb: 2, color: 'red' }}>
+          <IconButton sx={{ mb: 2, color: 'red' }} onClick={handleLike}>
             <ThumbUpIcon />
           </IconButton>
-          <IconButton sx={{ mb: 2, color: 'red' }}>
+          <IconButton sx={{ mb: 2, color: 'red' }} onClick={handleDislike}>
             <ThumbDownIcon />
           </IconButton>
-          <IconButton sx={{ mb: 2, color: 'red' }}>
+          <IconButton sx={{ mb: 2, color: 'red' }} onClick={handleShare}>
             <ShareIcon />
           </IconButton>
           <IconButton
-            onClick={() => {
-              loadMoreVideo();
-            }}
+            onClick={loadMoreVideo}
             sx={{ color: 'red', mt: 2 }}
           >
             <ArrowDownwardIcon fontSize="large" />

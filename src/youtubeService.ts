@@ -1,13 +1,13 @@
 // src/youtubeService.ts
 import axios from 'axios';
 
-const API_KEY = 'AIzaSyD8_yXbIBY0kfn9H99Gnf_KGsNBUH1ZkWY';
+const API_KEY = process.env.REACT_APP_YOUTUBE_API_KEY;
 const MAX_RESULTS = 50; // Number of results per page
 
-export const fetchRandomShorts = async (keyword: string = 'shorts') => {
+export const fetchRandomShorts = async (searchKeyword: string = '#shorts') => {
   try {
     const response = await axios.get(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${MAX_RESULTS}&q=${keyword}&type=video&videoDuration=short&key=${API_KEY}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=${MAX_RESULTS}&q=${encodeURIComponent(searchKeyword)}&type=video&videoDuration=short&key=${API_KEY}`
     );
     
     const videos = response.data.items.map((item: any) => ({
