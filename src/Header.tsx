@@ -50,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({ onSearch }) => {
           </IconButton>
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              {isShortsPage ? 'YouTube Shorts Clone' : 'About'}
+              {isShortsPage ? 'short-feed - A YouTube Shorts Clone' : 'About'}
             </Typography>
             {isShortsPage && onSearch && (
               <TextField
