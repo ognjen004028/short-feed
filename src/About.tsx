@@ -20,7 +20,7 @@ const About: React.FC = () => {
         </Typography>
         <Typography variant="body1" sx={{ maxWidth: '600px', textAlign: 'center' }}>
           short-feed, a YouTube Shorts clone created using React TypeScript <br />
-          Github: <a href="https://www.github.com/ognjen004028">short-feed by ognjen004028@github.com</a>
+          Github: <a href="https://www.github.com/ognjen004028/short-feed">short-feed by ognjen004028@github.com</a>
         </Typography>
       </Box>
     </>
