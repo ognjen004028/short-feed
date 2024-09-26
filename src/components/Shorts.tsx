@@ -10,8 +10,9 @@ import ShareIcon from '@mui/icons-material/Share';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert, { AlertProps } from '@mui/material/Alert';
-import { fetchRandomShorts } from './youtubeService';
+import { fetchRandomShorts } from '../youtubeService';
 import Header from './Header';
+import Loading from './Loading';
 
 interface Video {
   id: string;
@@ -76,7 +77,7 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
   };
 
   if (!video) {
-    return <Typography>Loading...</Typography>;
+    return <Loading />;
   }
 
   return (
