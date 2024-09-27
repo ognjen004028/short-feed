@@ -1,5 +1,4 @@
-// src/Shorts.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Typography from '@mui/material/Typography';
@@ -8,10 +7,10 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import ShareIcon from '@mui/icons-material/Share';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert, { AlertProps } from '@mui/material/Alert';
 import { fetchRandomShorts } from '../youtubeService';
-import Header from './Header';
 import Loading from './Loading';
 
 interface Video {
@@ -32,22 +31,29 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(function Alert(
 });
 
 const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
-  const [video, setVideo] = useState<Video | null>(null);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const loadMoreVideo = useCallback(async () => {
+  const loadMoreVideos = useCallback(async () => {
     try {
       const newVideo = await fetchRandomShorts(searchKeyword);
-      setVideo(newVideo);
+      setVideos(prevVideos => [...prevVideos, newVideo]);
     } catch (error) {
       console.error('Error fetching video:', error);
     }
   }, [searchKeyword]);
 
   useEffect(() => {
-    loadMoreVideo();
-  }, [loadMoreVideo]);
+    // Reset videos and load new ones when searchKeyword changes
+    setVideos([]);
+    setCurrentIndex(0);
+    for (let i = 0; i < 3; i++) {
+      loadMoreVideos();
+    }
+  }, [loadMoreVideos, searchKeyword]);
 
   const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') {
@@ -70,13 +76,37 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
   };
 
   const handleShare = () => {
-    if (video) {
-      navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${video.id}`);
-      showSnackbar('Link copied!');
+    if (videos[currentIndex]) {
+      navigator.clipboard.writeText(`https://www.youtube.com/watch?v=${videos[currentIndex].id}`);
+      showSnackbar('Link copied to clipboard.');
     }
   };
 
-  if (!video) {
+  const scrollToIndex = (index: number) => {
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: index * containerRef.current.clientHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleNextVideo = () => {
+    if (currentIndex === videos.length - 1) {
+      loadMoreVideos();
+    }
+    setCurrentIndex(prevIndex => prevIndex + 1);
+    scrollToIndex(currentIndex + 1);
+  };
+
+  const handlePreviousVideo = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(prevIndex => prevIndex - 1);
+      scrollToIndex(currentIndex - 1);
+    }
+  };
+
+  if (videos.length === 0) {
     return <Loading />;
   }
 
@@ -85,9 +115,8 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
       display="flex"
       flexDirection="column"
       alignItems="center"
-      sx={{ backgroundColor: '#f0f0f0', paddingTop: '64px', minHeight: '100vh', margin: 0, overflow: 'hidden' }}
+      sx={{ backgroundColor: '#f0f0f0', height: '100vh', margin: 0, overflow: 'hidden' }}
     >
-      <Header onSearch={onSearch} />
       <Snackbar
         anchorOrigin={{ vertical:'bottom', horizontal:'center' }}
         open={snackbarOpen}
@@ -101,50 +130,68 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
       <Box
         display="flex"
         flexDirection="row"
-        sx={{ width: '100%', height: '90vh', maxWidth: 800 }}
+        sx={{ width: '100%', height: '100%', maxWidth: 800 }}
       >
         <Box
-          display="flex"
-          flexDirection="column"
-          justifyContent="center"
-          sx={{ flex: 1, height: '100%', alignItems: 'center' }}
+          ref={containerRef}
+          sx={{
+            flex: 1,
+            height: '100%',
+            overflowY: 'hidden',
+            scrollSnapType: 'y mandatory',
+          }}
         >
-          <Typography variant="h6" sx={{ marginBottom: 2, color: 'black' }}>
-            {video.title}
-          </Typography>
-          <Card sx={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+          {videos.map((video, index) => (
             <Box
+              key={video.id}
               sx={{
-                position: 'relative',
-                height: 'calc(100vh - 64px)', // Adjust to fill the available space
-                width: '100%',
-                paddingTop: '56.25%', // 16:9 aspect ratio
-                overflow: 'hidden',
+                height: '100%',
+                scrollSnapAlign: 'start',
+                scrollSnapStop: 'always',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
               }}
             >
-              <iframe
-                src={`https://www.youtube.com/embed/${video.id}?autoplay=1&controls=0&modestbranding=1`}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={video.title}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                }}
-              />
+              <Typography variant="h6" sx={{ marginTop: 2, marginBottom: 2, color: 'black' }}>
+                {video.title}
+              </Typography>
+              <Card sx={{ height: '80%', width: '90%', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    height: '100%',
+                    width: '100%',
+                    paddingTop: '56.25%',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <iframe
+                    src={`https://www.youtube.com/embed/${video.id}?autoplay=${index === currentIndex ? 1 : 0}&controls=0&modestbranding=1`}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={video.title}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                    }}
+                  />
+                </Box>
+              </Card>
             </Box>
-          </Card>
+          ))}
         </Box>
         <Box
           display="flex"
           flexDirection="column"
           justifyContent="center"
           alignItems="center"
-          sx={{ width: 80, backgroundColor: '#f0f0f0', height: '100vh' }}
+          sx={{ width: 80, backgroundColor: '#f0f0f0', height: '100%' }}
         >
           <IconButton sx={{ mb: 2, color: 'red' }} onClick={handleLike}>
             <ThumbUpIcon />
@@ -156,8 +203,15 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
             <ShareIcon />
           </IconButton>
           <IconButton
-            onClick={loadMoreVideo}
-            sx={{ color: 'red', mt: 2 }}
+            onClick={handlePreviousVideo}
+            sx={{ color: 'red', mt: 2, mb: 1 }}
+            disabled={currentIndex === 0}
+          >
+            <ArrowUpwardIcon fontSize="large" />
+          </IconButton>
+          <IconButton
+            onClick={handleNextVideo}
+            sx={{ color: 'red', mt: 1 }}
           >
             <ArrowDownwardIcon fontSize="large" />
           </IconButton>

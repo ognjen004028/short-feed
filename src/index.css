@@ -11,3 +11,12 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.video-container {
+  scroll-snap-align: start;
+}
+
+.video-container > div {
+  height: 100vh;
+  scroll-snap-stop: always;
+}
