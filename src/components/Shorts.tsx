@@ -35,25 +35,61 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
 
-  const loadMoreVideos = useCallback(async () => {
+  const loadMoreVideos = useCallback(async (count: number = 1) => {
     try {
-      const newVideo = await fetchRandomShorts(searchKeyword);
-      setVideos(prevVideos => [...prevVideos, newVideo]);
+      setIsLoading(true);
+      const newVideos = await Promise.all(
+        Array(count).fill(null).map(() => fetchRandomShorts(searchKeyword))
+      );
+      setVideos(prevVideos => [...prevVideos, ...newVideos]);
     } catch (error) {
-      console.error('Error fetching video:', error);
+      console.error('Error fetching videos:', error);
+      showSnackbar('Failed to load videos. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   }, [searchKeyword]);
 
   useEffect(() => {
-    // Reset videos and load new ones when searchKeyword changes
     setVideos([]);
     setCurrentIndex(0);
-    for (let i = 0; i < 3; i++) {
-      loadMoreVideos();
-    }
+    setIsLoading(true);
+    loadMoreVideos(3);
   }, [loadMoreVideos, searchKeyword]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (containerRef.current && !isScrollingRef.current) {
+        const containerHeight = containerRef.current.clientHeight;
+        const scrollPosition = containerRef.current.scrollTop;
+        const newIndex = Math.round(scrollPosition / containerHeight);
+        
+        if (newIndex !== currentIndex) {
+          setCurrentIndex(newIndex);
+        }
+
+        // Load more videos when nearing the end
+        if (newIndex >= videos.length - 2) {
+          loadMoreVideos(3);
+        }
+      }
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [currentIndex, videos.length, loadMoreVideos]);
 
   const handleSnackbarClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') {
@@ -84,29 +120,32 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
 
   const scrollToIndex = (index: number) => {
     if (containerRef.current) {
+      isScrollingRef.current = true;
       containerRef.current.scrollTo({
         top: index * containerRef.current.clientHeight,
         behavior: 'smooth'
       });
+      setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 1000); // Adjust this timeout if needed to match your scroll animation duration
     }
   };
 
   const handleNextVideo = () => {
-    if (currentIndex === videos.length - 1) {
-      loadMoreVideos();
-    }
-    setCurrentIndex(prevIndex => prevIndex + 1);
-    scrollToIndex(currentIndex + 1);
+    const nextIndex = currentIndex + 1;
+    setCurrentIndex(nextIndex);
+    scrollToIndex(nextIndex);
   };
 
   const handlePreviousVideo = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(prevIndex => prevIndex - 1);
-      scrollToIndex(currentIndex - 1);
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
+      scrollToIndex(prevIndex);
     }
   };
 
-  if (videos.length === 0) {
+  if (isLoading && videos.length === 0) {
     return <Loading />;
   }
 
@@ -118,7 +157,7 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
       sx={{ backgroundColor: '#f0f0f0', height: '100vh', margin: 0, overflow: 'hidden' }}
     >
       <Snackbar
-        anchorOrigin={{ vertical:'bottom', horizontal:'center' }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         open={snackbarOpen}
         autoHideDuration={2000}
         onClose={handleSnackbarClose}
@@ -137,13 +176,18 @@ const Shorts: React.FC<ShortsProps> = ({ searchKeyword, onSearch }) => {
           sx={{
             flex: 1,
             height: '100%',
-            overflowY: 'hidden',
+            overflowY: 'scroll',
             scrollSnapType: 'y mandatory',
+            '&::-webkit-scrollbar': {
+              display: 'none',
+            },
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
           }}
         >
           {videos.map((video, index) => (
             <Box
-              key={video.id}
+              key={`${video.id}-${index}`}
               sx={{
                 height: '100%',
                 scrollSnapAlign: 'start',
